@@ -36,10 +36,24 @@ https://github.com/konomo1010/dsh-command-shortcut/archive/refs/heads/main.tar.g
 
 装完**重启 DSH 桌面端**（host 半体与 client bundle 都只在启动时加载）；之后只改 `client.js` 的话，`Ctrl+R` 重载窗口即可重新拉取模块。
 
-手工安装（等价做法，供参考）：
+### 必须装成「拷贝」，不要装成「链接」
 
-- profile 的 `package.json`：`dependencies` 加 `"dsh-command-shortcut": "<上面的 tarball 地址>"` 或 `"file:<本目录绝对路径>"`，`dsh.profile.bundles` 追加 `"dsh-command-shortcut"`
-- 用 `file:` 装本地目录时，`node_modules/dsh-command-shortcut` 会是指向源码目录的链接（跨盘符要用 junction，`pnpm link:` 会产生坏 symlink）
+从上面的 GitHub 地址装完，`node_modules/dsh-command-shortcut` 是包自身的**拷贝**，加载路径由包名相对 profile 解析，跟源码目录、盘符、机器都无关。
+
+反过来，用 `file:<本地绝对路径>` 装、或者手工建 junction/symlink，加载器会按 realpath 顺着链接走到那个绝对路径去读 `index.js`：那个目录一旦被清空，或者在别的机器上本来就不存在，就会报 `ENOENT ... open 'D:\...\index.js'`。
+
+验证（在 profile 目录里执行，输出应落在 profile 内）：
+
+```
+node -e "const{createRequire}=require('node:module');const r=createRequire(process.cwd()+'/x.js');console.log(r.resolve('dsh-command-shortcut'))"
+```
+
+预期是 `.../.dsh/profiles/<profile 名>/node_modules/dsh-command-shortcut/index.js`。若打印出 `D:\project\...` 之类的源码路径，说明装成了链接，删掉该条目重装即可。
+
+手工安装（**仅本机调试用，不要用于分发**）：
+
+- profile 的 `package.json`：`dependencies` 加 `"dsh-command-shortcut": "<上面的 tarball 地址>"`，`dsh.profile.bundles` 追加 `"dsh-command-shortcut"`
+- 想改代码时，改源码 → 重新装一次（或把改动拷进 profile 里那份拷贝），别用 `file:` 把 profile 指回源码目录
 
 卸载：删掉上面的依赖行、bundles 项和 `node_modules` 里的那个条目，重启即可。**数据不会被删**（见下）。
 
@@ -47,7 +61,7 @@ https://github.com/konomo1010/dsh-command-shortcut/archive/refs/heads/main.tar.g
 
 **启用失败：`failed to import: Error: ENOENT ... open 'D:\...\dsh-command-shortcut\index.js'`**
 
-说明 profile 里那条依赖被解析成了本地目录，但那个目录里已经没有 `index.js`。常见成因是「先用本地目录装过，再用 GitHub 地址重装」：本地目录装出来的 `node_modules/dsh-command-shortcut` 是指向源码目录的链接（junction），插件管理器在**清理旧安装条目**时会按该条目路径逐项删除，链接被穿透，**源码目录里的文件被一起清掉**，只剩一个空目录；下一次加载按链接 realpath 去源码路径找 `index.js`，于是报 ENOENT。（实测 pnpm 自己换依赖来源时不会删源码，这一步是管理器做的。）恢复办法：重新从仓库拉一份源码覆盖回原目录，然后清掉 `node_modules` 里残留的链接（用 `rmdir` 删链接本身，别用递归删除），再重装。
+说明 profile 里那条依赖被解析成了本地目录，但那个目录里已经没有 `index.js`。常见成因是「先用本地目录装过，再用 GitHub 地址重装」：本地目录装出来的 `node_modules/dsh-command-shortcut` 是指向源码目录的链接（junction），插件管理器在**清理旧安装条目**时会按该条目路径逐项删除，链接被穿透，**源码目录里的文件被一起清掉**，只剩一个空目录；下一次加载按链接 realpath 去源码路径找 `index.js`，于是报 ENOENT。（实测 pnpm 自己换依赖来源时不会删源码，这一步是管理器做的。）恢复办法：重新从仓库拉一份源码覆盖回原目录，然后清掉 `node_modules` 里残留的链接（用 `rmdir` 删链接本身，别用递归删除），再重装。根治办法是**只用拷贝式安装**（见上面「必须装成拷贝」一节），让加载路径永远落在 profile 内。
 
 **`ERR_PNPM_GIT_RESOLVE_FAILED ... git ls-remote failed: 'git' 不是内部或外部命令`**
 
