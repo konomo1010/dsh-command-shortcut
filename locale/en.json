@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Command shortcuts",
+    "description": "Adds a Command button to the composer toolbar. It opens a panel of saved prompts; clicking one fills the composer without sending. Prompts can be added, edited, deleted and searched, and are stored locally."
+  }
+}

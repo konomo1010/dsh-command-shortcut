@@ -1,0 +1,3 @@
+- insert:
+    - id: command-shortcut
+      name: dsh-command-shortcut
