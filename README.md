@@ -17,7 +17,7 @@ dsh-command-shortcut/
 ## 实现要点
 
 - **按钮**注册在 `conversation.input.left`（输入框工具行左侧的紧凑控件），外观对齐宿主原生胶囊：28px 高、`--dsw-radius-sm` 圆角、13px/500、hover 用 `--dsw-alias-interactive-bg-hover`。
-- **面板**注册在 `conversation.input.overlay`，但该槽位在宿主里是 `height:0; position:absolute` 的零高度锚点，直接渲染会被压在输入框上。因此面板通过 `react-dom` 的 `createPortal` 挂到 `document.body`，用 `position: fixed` 定位，坐标由按钮的 `getBoundingClientRect()` 计算（贴按钮上方 6px、左右夹紧视口）。
+- **面板**注册在 `conversation.input.overlay&#8203;`，但该槽位在宿主里是 `height:0; position:absolute` 的零高度锚点，直接渲染会被压在输入框上。因此面板通过 `react-dom` 的 `createPortal` 挂到 `document.body`，用 `position: fixed` 定位，坐标由按钮的 `getBoundingClientRect()` 计算（贴按钮上方 6px、左右夹紧视口）。
 - 宿主缺 `react-dom` 时自动回落到锚点内 `position: absolute`。
 - **列表条目单行**：名称（`max-width:45%`）+ 内容（单行省略）同排，高 30px；编辑/删除按钮绝对定位在右侧、hover 才出现。
 - **填充**：`props.inputActions.setDraft(text)`；取不到时退回 `insertText(text, captureInsertion())`。
@@ -26,16 +26,40 @@ dsh-command-shortcut/
 
 ## 安装
 
-在 DSH 里 **插件（Plugins）→ 添加插件（Add plugin）**，选本目录。本地目录安装会把目录 link 进 profile，改代码即时生效。
+推荐：在 DSH 里 **插件（Plugins）→ 添加插件（Add plugin）**，填仓库地址：
 
-装完**重启 DSH 桌面端**（客户端 bundle 只在启动时加载）；之后只改 `client.js` 的话，`Ctrl+R` 重载窗口即可重新拉取模块。
+```
+https://github.com/konomo1010/dsh-command-shortcut/archive/refs/heads/main.tar.gz
+```
+
+用 tarball 地址而不是 `github:konomo1010/dsh-command-shortcut`，原因是后者要本机有 `git`（pnpm 靠 `git ls-remote` 解析），而 tarball 只走 HTTPS。两种方式装完都要把包名加进 profile `dsh.profile.bundles`，否则 patch 不生效。
+
+装完**重启 DSH 桌面端**（host 半体与 client bundle 都只在启动时加载）；之后只改 `client.js` 的话，`Ctrl+R` 重载窗口即可重新拉取模块。
 
 手工安装（等价做法，供参考）：
 
-- profile 的 `package.json`：`dependencies` 加 `"dsh-command-shortcut": "file:<本目录绝对路径>"`，`dsh.profile.bundles` 追加 `"dsh-command-shortcut"`
-- `node_modules/dsh-command-shortcut` 指向本目录（跨盘符请用 junction，`pnpm link:` 会产生坏 symlink）
+- profile 的 `package.json`：`dependencies` 加 `"dsh-command-shortcut": "<上面的 tarball 地址>"` 或 `"file:<本目录绝对路径>"`，`dsh.profile.bundles` 追加 `"dsh-command-shortcut"`
+- 用 `file:` 装本地目录时，`node_modules/dsh-command-shortcut` 会是指向源码目录的链接（跨盘符要用 junction，`pnpm link:` 会产生坏 symlink）
 
-卸载：删掉上面的依赖行、bundles 项和 `node_modules` 里的那个链接，重启即可。**数据不会被删**（见下）。
+卸载：删掉上面的依赖行、bundles 项和 `node_modules` 里的那个条目，重启即可。**数据不会被删**（见下）。
+
+## 故障排查
+
+**启用失败：`failed to import: Error: ENOENT ... open 'D:\...\dsh-command-shortcut\index.js'`**
+
+说明 profile 里那条依赖被解析成了本地目录，但那个目录里已经没有 `index.js`。常见成因是「先用本地目录装过，再用 GitHub 地址重装」：pnpm 移除旧的 `file:` 链接时按递归删除处理，Windows junction 会被穿透，**源码目录里的文件被一起删掉**。恢复办法：重新从仓库拉一份源码覆盖回原目录，然后清掉 `node_modules` 里残留的链接（用 `rmdir` 删链接本身，别用递归删除），再重装。
+
+**`ERR_PNPM_GIT_RESOLVE_FAILED ... git ls-remote failed: 'git' 不是内部或外部命令`**
+
+本机没装 git。装 Git for Windows（或改用 tarball 地址，不需要 git）。
+
+**`[ERROR] fetch failed` / `ECONNRESET`（访问 github.com、raw.githubusercontent.com 失败）**
+
+github.com 在这个网络下直连不通。pnpm 不认系统代理，要在装之前给进程带上代理环境变量（`npm_config_https_proxy` / `npm_config_proxy` / `HTTPS_PROXY`，例如 `http://127.0.0.1:10808`）；只开浏览器的代理、或只在 IE 设置里填代理都不够。`codeload.github.com` 通常能直连，所以下载源码包优先用它。
+
+**包里改了代码但界面没变**
+
+`client.js` 属于浏览器半体：`Ctrl+R` 重载窗口即可；`index.js`、`cordis.patch.yml` 改了必须重启客户端。
 
 ## 数据
 
