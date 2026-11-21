@@ -2,8 +2,8 @@
   "name": "dsh-command-shortcut",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "DSH 插件：在输入框工具行加一个「快捷指令」按钮，点开列出常用提示词，点一条即填入输入框且不自动发送",
+  "type": "module",
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
