@@ -47,13 +47,13 @@ https://github.com/konomo1010/dsh-command-shortcut/archive/refs/heads/main.tar.g
 
 **启用失败：`failed to import: Error: ENOENT ... open 'D:\...\dsh-command-shortcut\index.js'`**
 
-说明 profile 里那条依赖被解析成了本地目录，但那个目录里已经没有 `index.js`。常见成因是「先用本地目录装过，再用 GitHub 地址重装」：pnpm 移除旧的 `file:` 链接时按递归删除处理，Windows junction 会被穿透，**源码目录里的文件被一起删掉**。恢复办法：重新从仓库拉一份源码覆盖回原目录，然后清掉 `node_modules` 里残留的链接（挪出目录再删，别在原位置递归删除），再重装。
+说明 profile 里那条依赖被解析成了本地目录，但那个目录里已经没有 `index.js`。常见成因是「先用本地目录装过，再用 GitHub 地址重装」：本地目录装出来的 `node_modules/dsh-command-shortcut` 是指向源码目录的链接（junction），插件管理器在**清理旧安装条目**时会按该条目路径逐项删除，链接被穿透，**源码目录里的文件被一起清掉**，只剩一个空目录；下一次加载按链接 realpath 去源码路径找 `index.js`，于是报 ENOENT。（实测 pnpm 自己换依赖来源时不会删源码，这一步是管理器做的。）恢复办法：重新从仓库拉一份源码覆盖回原目录，然后清掉 `node_modules` 里残留的链接（用 `rmdir` 删链接本身，别用递归删除），再重装。
 
 **`ERR_PNPM_GIT_RESOLVE_FAILED ... git ls-remote failed: 'git' 不是内部或外部命令`**
 
 本机没装 git。装 Git for Windows（或改用 tarball 地址，不需要 git）。
 
-**`[ERROR] fetch failed` / `ECONNRESET` / `ETIMEDOUT`（访问 github.com、raw.githubusercontent.com 失败）**
+**`[ERROR] fetch failed` / `ECONNRESET`（访问 github.com、raw.githubusercontent.com 失败）**
 
 github.com 在这个网络下直连不通。pnpm 不认系统代理，要在装之前给进程带上代理环境变量（`npm_config_https_proxy` / `npm_config_proxy` / `HTTPS_PROXY`，例如 `http://127.0.0.1:10808`）；只开浏览器的代理、或只在 IE 设置里填代理都不够。`codeload.github.com` 通常能直连，所以下载源码包优先用它。
 
